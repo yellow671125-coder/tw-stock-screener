@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台股法人選股｜三大法人連3買篩選系統</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --c-bg:        #0b0e13;
+  --c-surface:   #111520;
+  --c-surface2:  #181d2a;
+  --c-border:    rgba(255,255,255,0.07);
+  --c-border2:   rgba(255,255,255,0.12);
+  --c-text:      #e8ecf4;
+  --c-muted:     #6b7590;
+  --c-accent:    #3b82f6;
+  --c-accent2:   #1d4ed8;
+  --c-green:     #22c55e;
+  --c-green-dim: rgba(34,197,94,0.12);
+  --c-red:       #ef4444;
+  --c-red-dim:   rgba(239,68,68,0.10);
+  --c-amber:     #f59e0b;
+  --c-amber-dim: rgba(245,158,11,0.12);
+  --c-blue-dim:  rgba(59,130,246,0.10);
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   14px;
+  --font-ui:     'Noto Sans TC', sans-serif;
+  --font-mono:   'JetBrains Mono', monospace;
+}
+html { scroll-behavior: smooth; }
+body {
+  font-family: var(--font-ui);
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Grid bg texture ─────────────────────────────────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background-image:
+    linear-gradient(rgba(59,130,246,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59,130,246,0.03) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── Layout ──────────────────────────────────────────────────────────────── */
+.container { max-width: 1280px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
+
+/* ── Header ──────────────────────────────────────────────────────────────── */
+header {
+  padding: 28px 0 24px;
+  border-bottom: 1px solid var(--c-border);
+  margin-bottom: 28px;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.logo-wrap { display: flex; align-items: center; gap: 12px; }
+.logo-icon {
+  width: 38px; height: 38px;
+  background: linear-gradient(135deg, var(--c-accent), #6366f1);
+  border-radius: var(--radius-md);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px;
+}
+.logo-text h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+.logo-text p  { font-size: 11px; color: var(--c-muted); margin-top: 1px; }
+.header-meta  { display: flex; align-items: center; gap: 12px; }
+.badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--c-border2);
+  color: var(--c-muted);
+}
+#live-clock {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--c-muted);
+}
+
+/* ── Params row ──────────────────────────────────────────────────────────── */
+.params-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.param-group { display: flex; flex-direction: column; gap: 5px; }
+.param-group label {
+  font-size: 11px;
+  color: var(--c-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  font-weight: 500;
+}
+.param-group input, .param-group select {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border2);
+  border-radius: var(--radius-sm);
+  color: var(--c-text);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 12px;
+  width: 120px;
+  outline: none;
+  transition: border-color .2s;
+}
+.param-group input:focus, .param-group select:focus {
+  border-color: var(--c-accent);
+}
+.param-group select option { background: #1e2433; }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-run {
+  background: var(--c-accent);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 8px 22px;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-ui);
+  cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  transition: background .2s, transform .1s;
+  white-space: nowrap;
+  align-self: flex-end;
+}
+.btn-run:hover  { background: #2563eb; }
+.btn-run:active { transform: scale(0.97); }
+.btn-run:disabled { background: #374151; cursor: not-allowed; }
+.btn-export {
+  background: transparent;
+  color: var(--c-muted);
+  border: 1px solid var(--c-border2);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all .2s;
+  align-self: flex-end;
+  display: none;
+  font-family: var(--font-ui);
+}
+.btn-export:hover { color: var(--c-text); border-color: var(--c-accent); }
+
+/* ── Status bar ──────────────────────────────────────────────────────────── */
+.status-bar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  margin-bottom: 20px;
+  font-size: 13px;
+  min-height: 42px;
+  transition: all .3s;
+}
+.status-bar.loading { border-color: var(--c-amber); }
+.status-bar.success { border-color: var(--c-green); }
+.status-bar.error   { border-color: var(--c-red); }
+.status-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  background: var(--c-muted);
+  transition: background .3s;
+}
+.status-bar.loading .status-dot { background: var(--c-amber); animation: blink 1s infinite; }
+.status-bar.success .status-dot { background: var(--c-green); }
+.status-bar.error   .status-dot { background: var(--c-red); }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.status-text { flex: 1; color: var(--c-muted); }
+.status-bar.loading .status-text { color: var(--c-amber); }
+.status-bar.success .status-text { color: var(--c-green); }
+.status-bar.error   .status-text { color: var(--c-red); }
+.progress-mini {
+  height: 3px;
+  background: var(--c-border);
+  border-radius: 2px;
+  width: 120px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: var(--c-accent);
+  border-radius: 2px;
+  width: 0%;
+  transition: width .5s ease;
+}
+
+/* ── Summary cards ───────────────────────────────────────────────────────── */
+.summary-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.stat-card {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  transition: border-color .2s;
+}
+.stat-card:hover { border-color: var(--c-border2); }
+.stat-card .label { font-size: 11px; color: var(--c-muted); text-transform: uppercase; letter-spacing:.04em; margin-bottom: 6px; }
+.stat-card .value { font-size: 22px; font-weight: 700; font-family: var(--font-mono); }
+.stat-card .value.green { color: var(--c-green); }
+.stat-card .value.amber { color: var(--c-amber); }
+.stat-card .value.blue  { color: var(--c-accent); }
+.stat-card .sub { font-size: 11px; color: var(--c-muted); margin-top: 3px; }
+
+/* ── Table ───────────────────────────────────────────────────────────────── */
+.table-wrap {
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.table-header-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-border);
+}
+.table-title { font-size: 13px; font-weight: 600; }
+.table-sub   { font-size: 11px; color: var(--c-muted); margin-top: 1px; }
+.table-scroll { overflow-x: auto; }
+table {
+  width: 100%; border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  padding: 10px 12px;
+  text-align: left;
+  color: var(--c-muted);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+  background: var(--c-surface2);
+  position: sticky; top: 0; z-index: 2;
+}
+thead th.r { text-align: right; }
+tbody tr {
+  border-bottom: 1px solid var(--c-border);
+  transition: background .15s;
+}
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--c-surface2); }
+td {
+  padding: 11px 12px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+td.r { text-align: right; }
+
+/* ── Cell components ─────────────────────────────────────────────────────── */
+.rank-badge {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 700;
+}
+.r1 { background: linear-gradient(135deg,#f59e0b,#d97706); color: #1c1404; }
+.r2 { background: linear-gradient(135deg,#94a3b8,#64748b); color: #0f1117; }
+.r3 { background: linear-gradient(135deg,#f97316,#ea580c); color: #1c0a04; }
+.rn { background: var(--c-surface2); color: var(--c-muted); border: 1px solid var(--c-border2); }
+
+.stock-id   { font-family: var(--font-mono); font-weight: 600; color: var(--c-accent); font-size: 13px; }
+.stock-name { color: var(--c-text); font-size: 13px; }
+
+.price-val  { font-family: var(--font-mono); font-weight: 600; color: var(--c-text); }
+.cost-val   { font-family: var(--font-mono); color: var(--c-muted); }
+.pct-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  background: var(--c-green-dim);
+  color: var(--c-green);
+}
+.vr-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-family: var(--font-mono);
+  font-size: 11px; font-weight: 600;
+  background: var(--c-amber-dim);
+  color: var(--c-amber);
+}
+.buy-net {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: #60a5fa;
+}
+.net-total {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--c-green);
+}
+.score-cell { display: flex; align-items: center; gap: 7px; }
+.score-track {
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 2px;
+  width: 60px;
+  overflow: hidden;
+}
+.score-bar { height: 100%; border-radius: 2px; background: var(--c-accent); }
+.score-num {
+  font-family: var(--font-mono);
+  font-size: 12px; font-weight: 600;
+  color: var(--c-accent);
+  min-width: 30px;
+}
+
+/* ── Empty / loading states ──────────────────────────────────────────────── */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--c-muted);
+}
+.empty-icon { font-size: 40px; margin-bottom: 12px; line-height: 1; }
+.empty-title { font-size: 16px; font-weight: 500; color: var(--c-text); margin-bottom: 6px; }
+.empty-sub   { font-size: 13px; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────── */
+footer {
+  margin-top: 48px;
+  padding: 24px 0;
+  border-top: 1px solid var(--c-border);
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-muted);
+  position: relative; z-index: 1;
+}
+
+/* ── Tooltip ─────────────────────────────────────────────────────────────── */
+.tip {
+  position: relative; cursor: default;
+  border-bottom: 1px dashed var(--c-muted);
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%; transform: translateX(-50%);
+  background: #1e2433;
+  border: 1px solid var(--c-border2);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--c-text);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .2s;
+  z-index: 10;
+}
+.tip:hover::after { opacity: 1; }
+
+/* ── Condition pills ─────────────────────────────────────────────────────── */
+.cond-row {
+  display: flex; gap: 6px; flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.cond-pill {
+  display: flex; align-items: center; gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--c-border2);
+  font-size: 12px;
+  background: var(--c-surface);
+  color: var(--c-muted);
+}
+.cond-pill .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+/* ── Responsive ──────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .header-meta { display: none; }
+  .params-row  { flex-direction: column; }
+  .param-group input, .param-group select { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ── Header ── -->
+  <header>
+    <div class="header-inner">
+      <div class="logo-wrap">
+        <div class="logo-icon">📈</div>
+        <div class="logo-text">
+          <h1>台股法人連3買選股</h1>
+          <p>Three Institutional Consecutive Buy Screener · TWSE Real Data</p>
+        </div>
+      </div>
+      <div class="header-meta">
+        <span class="badge">資料來源：TWSE</span>
+        <span class="badge">免費 · 每日更新</span>
+        <span id="live-clock">--:--:--</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── Condition display ── -->
+  <div class="cond-row">
+    <div class="cond-pill"><span class="dot" style="background:var(--c-green)"></span>法人連3買（外資＋投信＋自營商合計）</div>
+    <div class="cond-pill"><span class="dot" style="background:var(--c-blue, #60a5fa)"></span>現價 ≥ 法人成本 × 倍數</div>
+    <div class="cond-pill"><span class="dot" style="background:var(--c-amber)"></span>成交量 > N日均量</div>
+    <div class="cond-pill"><span class="dot" style="background:#a78bfa"></span>綜合評分排名前N</div>
+  </div>
+
+  <!-- ── Params ── -->
+  <div class="params-row">
+    <div class="param-group">
+      <label>成本倍數門檻</label>
+      <input type="number" id="p-mult" value="1.04" step="0.01" min="1.00" max="1.20">
+    </div>
+    <div class="param-group">
+      <label>均量天數</label>
+      <input type="number" id="p-days" value="5" step="1" min="3" max="20">
+    </div>
+    <div class="param-group">
+      <label>顯示排名數</label>
+      <input type="number" id="p-top" value="20" step="5" min="5" max="50">
+    </div>
+    <div class="param-group">
+      <label>買超權重 %</label>
+      <input type="number" id="p-w1" value="50" step="5" min="10" max="80">
+    </div>
+    <div class="param-group">
+      <label>量比權重 %</label>
+      <input type="number" id="p-w2" value="30" step="5" min="10" max="60">
+    </div>
+    <button class="btn-run" id="btn-run" onclick="runScreen()">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+        <circle cx="8" cy="8" r="7" stroke="white" stroke-width="1.5"/>
+        <path d="M6.5 5.5l4 2.5-4 2.5V5.5z" fill="white"/>
+      </svg>
+      開始篩選
+    </button>
+    <button class="btn-export" id="btn-export" onclick="exportCSV()">↓ 匯出 CSV</button>
+  </div>
+
+  <!-- ── Status ── -->
+  <div class="status-bar" id="status-bar">
+    <div class="status-dot"></div>
+    <div class="status-text" id="status-text">就緒 — 按「開始篩選」載入今日資料</div>
+    <div class="progress-mini"><div class="progress-fill" id="prog"></div></div>
+  </div>
+
+  <!-- ── Summary cards ── -->
+  <div class="summary-row" id="summary-row" style="display:none">
+    <div class="stat-card">
+      <div class="label">符合條件</div>
+      <div class="value green" id="s-count">—</div>
+      <div class="sub">三條件全符合</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">最高評分</div>
+      <div class="value amber" id="s-topscore">—</div>
+      <div class="sub" id="s-topname">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">平均量比</div>
+      <div class="value blue" id="s-avgvr">—</div>
+      <div class="sub">今日量 / 均量</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">法人3日總買超</div>
+      <div class="value green" id="s-totalnet">—</div>
+      <div class="sub">張（篩選股合計）</div>
+    </div>
+  </div>
+
+  <!-- ── Table ── -->
+  <div class="table-wrap">
+    <div class="table-header-row">
+      <div>
+        <div class="table-title">篩選結果</div>
+        <div class="table-sub" id="tbl-sub">等待篩選</div>
+      </div>
+      <div style="font-size:11px;color:var(--c-muted)" id="data-date">—</div>
+    </div>
+    <div class="table-scroll">
+      <div id="tbl-body">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <div class="empty-title">尚無資料</div>
+          <div class="empty-sub">點擊「開始篩選」載入今日台股法人資料</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Footer ── -->
+  <footer>
+    資料來源：台灣證券交易所（TWSE）公開 API · 僅供技術分析參考，不構成投資建議
+    <br>每日收盤後 15:30~16:00 更新 · 建議 16:00 後執行篩選
+  </footer>
+
+</div><!-- /container -->
+
+<script>
+// ── Config ─────────────────────────────────────────────────────────────────
+// 部署到 Vercel 後 API 自動在同一 domain，無需修改
+const API_BASE = window.location.origin + '/api/twse';
+
+let lastData  = [];
+let isRunning = false;
+
+// ── Clock ──────────────────────────────────────────────────────────────────
+function tick() {
+  const now = new Date();
+  document.getElementById('live-clock').textContent =
+    now.toLocaleTimeString('zh-TW', { hour12: false });
+}
+tick(); setInterval(tick, 1000);
+
+// ── Utils ──────────────────────────────────────────────────────────────────
+function fmt(n, dec = 0) {
+  if (n == null || isNaN(n)) return '—';
+  return Number(n).toLocaleString('zh-TW', {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+  });
+}
+function fmtK(n) { return fmt(Math.round(n / 1000)); }
+
+function setProgress(pct) {
+  document.getElementById('prog').style.width = pct + '%';
+}
+function setStatus(msg, type = 'idle') {
+  const bar = document.getElementById('status-bar');
+  bar.className = 'status-bar ' + type;
+  document.getElementById('status-text').textContent = msg;
+}
+
+// ── Trading date helper ────────────────────────────────────────────────────
+// Returns last N trading day strings (YYYYMMDD), Mon-Fri
+function getTradingDates(n = 5) {
+  const dates = [];
+  const d = new Date();
+  d.setDate(d.getDate() - 1); // start from yesterday
+  while (dates.length < n) {
+    if (d.getDay() !== 0 && d.getDay() !== 6) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      dates.push(`${y}${m}${day}`);
+    }
+    d.setDate(d.getDate() - 1);
+  }
+  return dates;
+}
+
+// ── Fetch via Vercel Proxy ─────────────────────────────────────────────────
+async function fetchInstitutional(date) {
+  const r = await fetch(`${API_BASE}?type=institutional&date=${date}`);
+  if (!r.ok) throw new Error(`法人資料 ${date} 請求失敗`);
+  const data = await r.json();
+  if (data.stat !== 'OK') return [];
+
+  return (data.data || []).map(row => {
+    const clean = s => parseFloat((s || '0').replace(/,/g, '')) || 0;
+    return {
+      stock_id:    row[0],
+      name:        row[1],
+      foreign_net: clean(row[4]),
+      trust_net:   clean(row[7]),
+      dealer_net:  clean(row[10]),
+      total_net:   clean(row[14]),
+      date,
+    };
+  });
+}
+
+async function fetchPrices(date) {
+  const r = await fetch(`${API_BASE}?type=prices&date=${date}`);
+  if (!r.ok) throw new Error(`行情資料 ${date} 請求失敗`);
+  const data = await r.json();
+  if (data.stat !== 'OK') return [];
+
+  const fields = data.fields9 || [];
+  const rows   = data.data9   || [];
+
+  // Map column names
+  let idIdx = -1, closeIdx = -1, volIdx = -1;
+  fields.forEach((f, i) => {
+    if (f.includes('代號') || f.includes('證券代號')) idIdx = i;
+    if (f.includes('收盤'))  closeIdx = i;
+    if (f.includes('成交股數') || f.includes('成交量')) volIdx = i;
+  });
+  if (idIdx < 0 || closeIdx < 0 || volIdx < 0) return [];
+
+  const clean = s => parseFloat((s || '0').replace(/,/g, '')) || 0;
+  return rows
+    .map(row => ({
+      stock_id: row[idIdx],
+      close:    clean(row[closeIdx]),
+      volume:   clean(row[volIdx]),
+      date,
+    }))
+    .filter(d => d.close > 0);
+}
+
+// ── Normalize helper ───────────────────────────────────────────────────────
+function normalize(arr, key) {
+  const vals = arr.map(d => d[key]);
+  const mn = Math.min(...vals), mx = Math.max(...vals);
+  if (mx === mn) return arr.map(d => ({ ...d, [`_n_${key}`]: 50 }));
+  return arr.map(d => ({ ...d, [`_n_${key}`]: (d[key] - mn) / (mx - mn) * 100 }));
+}
+
+// ── Main screener ──────────────────────────────────────────────────────────
+async function runScreen() {
+  if (isRunning) return;
+  isRunning = true;
+  document.getElementById('btn-run').disabled = true;
+  document.getElementById('btn-export').style.display = 'none';
+  document.getElementById('summary-row').style.display = 'none';
+  document.getElementById('tbl-body').innerHTML = '';
+  lastData = [];
+
+  const mult  = parseFloat(document.getElementById('p-mult').value) || 1.04;
+  const topN  = parseInt(document.getElementById('p-top').value)    || 20;
+  const w1    = parseFloat(document.getElementById('p-w1').value) / 100 || 0.5;
+  const w2    = parseFloat(document.getElementById('p-w2').value) / 100 || 0.3;
+  const w3    = Math.max(0, 1 - w1 - w2);
+
+  try {
+    // 1. Get trading dates
+    setStatus('計算交易日期...', 'loading'); setProgress(5);
+    const dates = getTradingDates(6); // need 5 for vol avg + 1 prev for cost
+
+    // 2. Fetch institutional — last 3 days
+    setStatus(`抓取法人資料（D-2）${dates[2]}...`, 'loading'); setProgress(12);
+    const instD2 = await fetchInstitutional(dates[2]);
+    setProgress(22);
+
+    setStatus(`抓取法人資料（D-1）${dates[1]}...`, 'loading'); setProgress(25);
+    const instD1 = await fetchInstitutional(dates[1]);
+    setProgress(38);
+
+    setStatus(`抓取法人資料（D0）${dates[0]}...`, 'loading'); setProgress(40);
+    const instD0 = await fetchInstitutional(dates[0]);
+    setProgress(52);
+
+    if (!instD0.length || !instD1.length || !instD2.length) {
+      throw new Error('法人資料不足（可能尚未更新，請收盤後 16:00 後再試）');
+    }
+
+    // 3. Fetch prices — today + prev + 4 more for vol avg
+    setStatus(`抓取收盤行情（今日 ${dates[0]}）...`, 'loading'); setProgress(55);
+    const px0 = await fetchPrices(dates[0]); // today
+    setProgress(64);
+
+    setStatus(`抓取收盤行情（前日 ${dates[1]}）...`, 'loading'); setProgress(65);
+    const px1 = await fetchPrices(dates[1]); // previous day (cost reference)
+    setProgress(72);
+
+    // Fetch remaining days for 5-day avg vol
+    setStatus('計算5日均量...', 'loading'); setProgress(73);
+    const px2 = await fetchPrices(dates[2]);
+    const px3 = await fetchPrices(dates[3]);
+    const px4 = await fetchPrices(dates[4]);
+    setProgress(84);
+
+    // 4. Build lookup maps
+    const toMap = (arr, key = 'stock_id') =>
+      Object.fromEntries(arr.map(d => [d[key], d]));
+
+    const mapD0  = toMap(instD0);
+    const mapD1  = toMap(instD1);
+    const mapD2  = toMap(instD2);
+    const mapPx0 = toMap(px0);
+    const mapPx1 = toMap(px1);
+
+    // Vol avg map: avg of px1..px4 (exclude today)
+    const avgVolMap = {};
+    const volDays = [px1, px2, px3, px4].filter(a => a.length > 0);
+    const allIds  = new Set([...px0.map(d => d.stock_id)]);
+    allIds.forEach(id => {
+      const vols = volDays.map(d => toMap(d)[id]?.volume).filter(v => v > 0);
+      if (vols.length > 0) avgVolMap[id] = vols.reduce((a, b) => a + b, 0) / vols.length;
+    });
+
+    // 5. Apply conditions
+    setStatus('套用篩選條件...', 'loading'); setProgress(88);
+
+    const candidates = Object.keys(mapD0).filter(id => {
+      const d0 = mapD0[id], d1 = mapD1[id], d2 = mapD2[id];
+      if (!d0 || !d1 || !d2) return false;
+      // Cond 1: consecutive 3-day buy
+      if (d0.total_net <= 0 || d1.total_net <= 0 || d2.total_net <= 0) return false;
+      // Cond 2: price >= prev_close × mult
+      const px = mapPx0[id], pxPrev = mapPx1[id];
+      if (!px || !pxPrev || pxPrev.close <= 0) return false;
+      if (px.close < pxPrev.close * mult) return false;
+      // Cond 3: volume > avg5
+      const avgVol = avgVolMap[id];
+      if (!avgVol || px.volume <= avgVol) return false;
+      return true;
+    });
+
+    if (!candidates.length) {
+      setStatus(`篩選完成 — 今日無符合條件股票（條件：成本×${mult}、量>均量）`, 'success');
+      document.getElementById('tbl-body').innerHTML = `
+        <div class="empty-state">
+          <div class="empty-icon">🤷</div>
+          <div class="empty-title">今日無符合條件股票</div>
+          <div class="empty-sub">嘗試調低成本倍數門檻（目前 ${mult}）或減少均量天數</div>
+        </div>`;
+      setProgress(100);
+      document.getElementById('btn-run').disabled = false;
+      isRunning = false;
+      return;
+    }
+
+    // 6. Score & rank
+    setStatus('計算評分與排名...', 'loading'); setProgress(92);
+
+    let scored = candidates.map(id => {
+      const d0 = mapD0[id], d1 = mapD1[id], d2 = mapD2[id];
+      const px = mapPx0[id], pxPrev = mapPx1[id];
+      const avgVol = avgVolMap[id] || 1;
+      const net3 = d0.total_net + d1.total_net + d2.total_net;
+      const volRatio = px.volume / avgVol;
+      const pctOverCost = (px.close / pxPrev.close - 1) * 100;
+      return {
+        id, name: mapD0[id].name,
+        close: px.close, cost: pxPrev.close,
+        pct: pctOverCost,
+        vol: px.volume, avgVol,
+        vr: volRatio,
+        d2net: d2.total_net, d1net: d1.total_net, d0net: d0.total_net,
+        net3,
+        score: 0,
+        _net3: net3, _vr: volRatio, _pct: pctOverCost,
+      };
+    });
+
+    // Normalize each metric
+    scored = normalize(scored, '_net3');
+    scored = normalize(scored, '_vr');
+    scored = normalize(scored, '_pct');
+
+    scored = scored.map(d => ({
+      ...d,
+      score: d[`_n__net3`] * w1 + d[`_n__vr`] * w2 + d[`_n__pct`] * w3,
+    }));
+
+    scored.sort((a, b) => b.score - a.score);
+    lastData = scored.slice(0, topN).map((d, i) => ({ ...d, rank: i + 1 }));
+
+    // 7. Render
+    setProgress(98);
+    renderTable(lastData, dates[0]);
+    renderSummary(lastData);
+
+    document.getElementById('btn-export').style.display = '';
+    document.getElementById('tbl-sub').textContent =
+      `${lastData.length} 檔符合條件，依綜合評分排名`;
+    document.getElementById('data-date').textContent =
+      `資料日期：${dates[0].slice(0,4)}/${dates[0].slice(4,6)}/${dates[0].slice(6)}`;
+
+    setStatus(`篩選完成 — 找到 ${lastData.length} 檔符合條件股票`, 'success');
+    setProgress(100);
+
+  } catch (err) {
+    console.error(err);
+    setStatus('錯誤：' + err.message, 'error');
+    document.getElementById('tbl-body').innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">⚠️</div>
+        <div class="empty-title">資料載入失敗</div>
+        <div class="empty-sub">${err.message}<br>請確認已部署到 Vercel，且收盤後 16:00 以後執行</div>
+      </div>`;
+  }
+
+  document.getElementById('btn-run').disabled = false;
+  isRunning = false;
+}
+
+// ── Render ─────────────────────────────────────────────────────────────────
+function rankClass(r) {
+  if (r === 1) return 'r1';
+  if (r === 2) return 'r2';
+  if (r === 3) return 'r3';
+  return 'rn';
+}
+
+function renderTable(data, dateStr) {
+  const rows = data.map(d => `
+    <tr>
+      <td style="text-align:center">
+        <span class="rank-badge ${rankClass(d.rank)}">${d.rank}</span>
+      </td>
+      <td><span class="stock-id">${d.id}</span></td>
+      <td><span class="stock-name">${d.name}</span></td>
+      <td class="r"><span class="price-val">${fmt(d.close, 2)}</span></td>
+      <td class="r"><span class="cost-val">${fmt(d.cost, 2)}</span></td>
+      <td class="r"><span class="pct-badge">+${fmt(d.pct, 2)}%</span></td>
+      <td class="r">${fmtK(d.vol)}</td>
+      <td class="r">${fmtK(d.avgVol)}</td>
+      <td class="r"><span class="vr-badge">${fmt(d.vr, 2)}x</span></td>
+      <td class="r buy-net">${fmtK(d.d2net)}</td>
+      <td class="r buy-net">${fmtK(d.d1net)}</td>
+      <td class="r buy-net" style="font-weight:600">${fmtK(d.d0net)}</td>
+      <td class="r"><span class="net-total">${fmtK(d.net3)}</span></td>
+      <td>
+        <div class="score-cell">
+          <div class="score-track">
+            <div class="score-bar" style="width:${Math.round(d.score * 0.6)}%"></div>
+          </div>
+          <span class="score-num">${fmt(d.score, 1)}</span>
+        </div>
+      </td>
+    </tr>`).join('');
+
+  document.getElementById('tbl-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th style="width:46px;text-align:center">排名</th>
+        <th style="width:58px">代號</th>
+        <th style="width:76px">名稱</th>
+        <th class="r" style="width:66px">現價</th>
+        <th class="r" style="width:76px">
+          <span class="tip" data-tip="以前一日收盤近似法人持有成本">法人成本</span>
+        </th>
+        <th class="r" style="width:62px">超成本%</th>
+        <th class="r" style="width:68px">今量(張)</th>
+        <th class="r" style="width:68px">均量(張)</th>
+        <th class="r" style="width:52px">量比</th>
+        <th class="r" style="width:60px">D-2買超</th>
+        <th class="r" style="width:60px">D-1買超</th>
+        <th class="r" style="width:60px">D0買超</th>
+        <th class="r" style="width:66px">3日累計</th>
+        <th style="width:90px">
+          <span class="tip" data-tip="買超50%+量比30%+超成本%20%（可調整）">評分</span>
+        </th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function renderSummary(data) {
+  document.getElementById('summary-row').style.display = 'grid';
+  document.getElementById('s-count').textContent = data.length + ' 檔';
+  const top = data[0];
+  document.getElementById('s-topscore').textContent = fmt(top.score, 1);
+  document.getElementById('s-topname').textContent  = `${top.id} ${top.name}`;
+  const avgVr = data.reduce((a, d) => a + d.vr, 0) / data.length;
+  document.getElementById('s-avgvr').textContent    = fmt(avgVr, 2) + 'x';
+  const totalNet = data.reduce((a, d) => a + d.net3, 0);
+  document.getElementById('s-totalnet').textContent = fmtK(totalNet);
+}
+
+// ── Export CSV ─────────────────────────────────────────────────────────────
+function exportCSV() {
+  if (!lastData.length) return;
+  const hdr = '排名,代號,名稱,現價,法人成本,超成本%,今量(張),5日均量(張),量比,D-2買超(張),D-1買超(張),D0買超(張),3日累計(張),評分';
+  const rows = lastData.map(d => [
+    d.rank, d.id, d.name,
+    fmt(d.close, 2), fmt(d.cost, 2), fmt(d.pct, 2),
+    Math.round(d.vol / 1000), Math.round(d.avgVol / 1000),
+    fmt(d.vr, 2),
+    Math.round(d.d2net / 1000), Math.round(d.d1net / 1000), Math.round(d.d0net / 1000),
+    Math.round(d.net3 / 1000),
+    fmt(d.score, 1),
+  ].join(','));
+  const csv = '\uFEFF' + [hdr, ...rows].join('\n');
+  const a = document.createElement('a');
+  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.download = `台股法人篩選_${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+}
+</script>
+</body>
+</html>
