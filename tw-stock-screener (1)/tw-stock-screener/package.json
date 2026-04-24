@@ -1,0 +1,16 @@
+{
+  "name": "tw-stock-screener",
+  "version": "1.0.0",
+  "description": "台股法人連3買選股系統",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "devDependencies": {
+    "vercel": "^34.0.0"
+  }
+}
